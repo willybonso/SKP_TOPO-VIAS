@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Vías Topográficas</title>
+  <style>
+    :root { color-scheme: dark; font: 14px "Segoe UI", Arial, sans-serif; color: #fff; background: #090b0c; }
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 22px; background: #090b0c; color: #fff; }
+    h1 { margin: 0 0 5px; font-size: 21px; color: #fff; }
+    .intro { margin: 0 0 18px; color: #fff; line-height: 1.45; opacity: .82; }
+    fieldset { border: 1px solid #353b3d; border-radius: 8px; background: #15191a; padding: 14px; margin: 0 0 14px; }
+    legend { padding: 0 5px; font-weight: 650; color: #fff; }
+    .selection { display: grid; gap: 9px; }
+    .entity { display: flex; justify-content: space-between; gap: 12px; color: #fff; }
+    .entity strong { font-weight: 600; }
+    .status { margin: 10px 0 0; min-height: 34px; padding: 8px 10px; border: 1px solid #454c4e; border-radius: 5px; background: #202526; color: #fff; line-height: 1.3; }
+    .status.ok { color: #fff; background: #174b35; border-color: #24774f; }
+    .status.error { color: #fff; background: #622d2d; border-color: #944242; }
+    .field { display: grid; grid-template-columns: 1fr 145px; align-items: center; gap: 12px; margin: 11px 0; }
+    label { line-height: 1.3; color: #fff; }
+    input[type="number"] { width: 100%; padding: 8px; border: 1px solid #50595b; border-radius: 5px; background: #090b0c; color: #fff; font: inherit; }
+    input:focus { outline: 2px solid #36a77b; outline-offset: 1px; }
+    .unit { display: flex; align-items: center; gap: 6px; }
+    .unit span { width: 34px; color: #fff; opacity: .8; }
+    .check { display: flex; align-items: center; gap: 9px; margin: 8px 0 12px; color: #fff; }
+    .check input { width: 16px; height: 16px; accent-color: #27a875; }
+    .note { margin: 4px 0 0; color: #fff; opacity: .72; font-size: 12px; }
+    .actions { display: flex; justify-content: space-between; gap: 10px; margin-top: 17px; }
+    button { border: 0; border-radius: 5px; padding: 10px 14px; color: #fff; font: inherit; font-weight: 600; cursor: pointer; }
+    button.secondary { background: #343b3d; color: #fff; }
+    button.primary { background: #187c59; color: #fff; }
+    button:disabled { opacity: .5; cursor: default; }
+  </style>
+</head>
+<body>
+  <h1>Vías Topográficas</h1>
+  <p class="intro">Configura la sección y el límite de pendiente. La calle se centrará automáticamente sobre el eje.</p>
+
+  <fieldset>
+    <legend>Selección del modelo</legend>
+    <div class="selection">
+      <div class="entity"><strong>Terreno</strong><span id="terrain">Sin validar</span></div>
+      <div class="entity"><strong>Eje</strong><span id="axis">Sin validar</span></div>
+    </div>
+    <div id="selection-status" class="status">Selecciona dos grupos en el modelo y valida la selección.</div>
+    <div class="actions"><button class="secondary" id="check">Validar selección</button></div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Sección transversal (por lado)</legend>
+    <div class="field"><label for="road-width">Ancho de calle (total)</label><div class="unit"><input id="road-width" type="number" min="0.1" step="0.1" value="7"><span>m</span></div></div>
+    <label class="check"><input id="curb-enabled" type="checkbox" checked> Incluir bordillo</label>
+    <div class="field"><label for="curb-width">Ancho de bordillo</label><div class="unit"><input id="curb-width" type="number" min="0" step="0.01" value="0.15"><span>m</span></div></div>
+    <div class="field"><label for="sidewalk-width">Ancho de acera</label><div class="unit"><input id="sidewalk-width" type="number" min="0" step="0.05" value="1.5"><span>m</span></div></div>
+    <p class="note">El ancho de acera incluye el espacio del bordillo.</p>
+    <div class="field"><label for="sidewalk-height">Altura de acera</label><div class="unit"><input id="sidewalk-height" type="number" min="0" step="0.01" value="0.15"><span>m</span></div></div>
+    <div class="field"><label for="slope-width">Ancho de talud</label><div class="unit"><input id="slope-width" type="number" min="0" step="0.1" value="2"><span>m</span></div></div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Diseño longitudinal</legend>
+    <div class="field"><label for="max-grade">Pendiente máxima</label><div class="unit"><input id="max-grade" type="number" min="0.1" max="100" step="0.5" value="12"><span>%</span></div></div>
+  </fieldset>
+
+  <div id="form-status" class="status" aria-live="polite">Valida la selección para continuar.</div>
+  <div class="actions">
+    <button class="secondary" id="cancel">Cerrar</button>
+    <button class="primary" id="continue" disabled>Analizar eje</button>
+  </div>
+
+  <script>
+    const selectionStatus = document.getElementById('selection-status');
+    const formStatus = document.getElementById('form-status');
+    const continueButton = document.getElementById('continue');
+
+    function setStatus(element, message, ok) {
+      element.textContent = message;
+      element.className = 'status ' + (ok ? 'ok' : 'error');
+    }
+
+    document.getElementById('check').addEventListener('click', () => sketchup.check_selection());
+    document.getElementById('cancel').addEventListener('click', () => window.close());
+    document.getElementById('continue').addEventListener('click', () => {
+      const values = {
+        road_width_m: Number(document.getElementById('road-width').value),
+        curb_enabled: document.getElementById('curb-enabled').checked,
+        curb_width_m: Number(document.getElementById('curb-width').value),
+        sidewalk_width_m: Number(document.getElementById('sidewalk-width').value),
+        sidewalk_height_m: Number(document.getElementById('sidewalk-height').value),
+        slope_width_m: Number(document.getElementById('slope-width').value),
+        max_grade_percent: Number(document.getElementById('max-grade').value)
+      };
+      const valid = Object.values(values).every(value => typeof value === 'boolean' || Number.isFinite(value)) &&
+        values.road_width_m > 0 && values.curb_width_m >= 0 && values.sidewalk_width_m >= 0 && values.sidewalk_height_m >= 0 &&
+        values.slope_width_m >= 0 && values.max_grade_percent > 0 && values.max_grade_percent <= 100;
+      if (!valid) {
+        setStatus(formStatus, 'Revisa los valores: deben ser números válidos y la pendiente debe estar entre 0 y 100%.', false);
+        return;
+      }
+      sketchup.submit_parameters(JSON.stringify(values));
+    });
+
+    window.selectionResult = result => {
+      continueButton.disabled = !result.ok;
+      document.getElementById('terrain').textContent = result.terrain || '—';
+      document.getElementById('axis').textContent = result.axis || '—';
+      setStatus(selectionStatus, result.message, result.ok);
+      setStatus(formStatus, result.ok ? 'Selección lista. Completa los parámetros.' : 'Valida la selección para continuar.', result.ok);
+    };
+    window.parameterResult = result => {
+      setStatus(formStatus, result.message, result.ok);
+      if (result.ok) console.log('Parámetros de vía:', result.parameters);
+    };
+  </script>
+</body>
+</html>
