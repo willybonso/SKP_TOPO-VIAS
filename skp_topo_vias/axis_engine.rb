@@ -10,14 +10,97 @@ module TopoVias
     SAMPLE_SPACING = INCHES_PER_METER
     GRADE_EPSILON = 1.0e-5
 
-    def analyze(model, terrain, axis, max_grade_percent)
+    class TerrainSampler
+      def initialize(terrain)
+        @triangles = []
+        @grid = Hash.new { |hash, key| hash[key] = [] }
+        @cell_size = [[terrain.bounds.diagonal / 40.0, 100.0].max, 1000.0].min
+        collect_faces(terrain.entities, terrain.transformation).each do |face, transform|
+          mesh = face.mesh(0)
+          mesh.polygons.each do |polygon|
+            points = polygon.map { |index| transform * mesh.point_at(index.abs) }
+            next if points.length < 3
+
+            (1...(points.length - 1)).each do |index|
+              triangle = [points[0], points[index], points[index + 1]]
+              next if projected_area_twice(triangle).abs < 1.0e-8
+
+              triangle_id = @triangles.length
+              @triangles << triangle
+              min_x = triangle.map(&:x).min
+              max_x = triangle.map(&:x).max
+              min_y = triangle.map(&:y).min
+              max_y = triangle.map(&:y).max
+              (min_x / @cell_size).floor.upto((max_x / @cell_size).floor) do |cell_x|
+                (min_y / @cell_size).floor.upto((max_y / @cell_size).floor) do |cell_y|
+                  @grid[[cell_x, cell_y]] << triangle_id
+                end
+              end
+            end
+          end
+        end
+        raise AnalysisError, 'El grupo de terreno no contiene una malla de caras proyectable en planta.' if @triangles.empty?
+      end
+
+      def elevation_at(point)
+        cell_x = (point.x / @cell_size).floor
+        cell_y = (point.y / @cell_size).floor
+        candidates = {}
+        (-1..1).each do |dx|
+          (-1..1).each do |dy|
+            (@grid[[cell_x + dx, cell_y + dy]] || []).each { |id| candidates[id] = true }
+          end
+        end
+
+        elevations = candidates.keys.map { |id| interpolated_z(@triangles[id], point.x, point.y) }.compact
+        raise AnalysisError, 'No se encontró una cara del grupo de terreno bajo una estación del eje. Comprueba que la malla cubra todo el eje.' if elevations.empty?
+
+        elevations.max
+      end
+
+      private
+
+      def projected_area_twice(triangle)
+        a, b, c = triangle
+        (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x)
+      end
+
+      def collect_faces(entities, transform, result = [])
+        entities.each do |entity|
+          case entity
+          when Sketchup::Face
+            result << [entity, transform]
+          when Sketchup::Group
+            collect_faces(entity.entities, transform * entity.transformation, result)
+          when Sketchup::ComponentInstance
+            collect_faces(entity.definition.entities, transform * entity.transformation, result)
+          end
+        end
+        result
+      end
+
+      def interpolated_z(triangle, x, y)
+        a, b, c = triangle
+        denominator = projected_area_twice(triangle)
+        return nil if denominator.abs < 1.0e-10
+
+        weight_a = ((b.x - x) * (c.y - y) - (b.y - y) * (c.x - x)) / denominator
+        weight_b = ((c.x - x) * (a.y - y) - (c.y - y) * (a.x - x)) / denominator
+        weight_c = 1.0 - weight_a - weight_b
+        tolerance = 1.0e-8
+        return nil if [weight_a, weight_b, weight_c].any? { |weight| weight < -tolerance || weight > 1.0 + tolerance }
+
+        weight_a * a.z + weight_b * b.z + weight_c * c.z
+      end
+    end
+
+    def analyze(terrain, axis, max_grade_percent)
       axis_points, closed = ordered_axis_points(axis)
       curve = sample_curve(axis_points, closed)
       raise AnalysisError, 'El eje es demasiado corto para generar estaciones.' if curve.length < 2
 
-      terrain_top = terrain.bounds.max.z
-      margin = [terrain.bounds.diagonal * 0.1, 1000.0].max
-      elevations = curve.map { |point| terrain_elevation(model, terrain, point, terrain_top + margin) }
+      terrain_sampler = TerrainSampler.new(terrain)
+      elevations = curve.map { |point| terrain_sampler.elevation_at(point) }
       smoothed = smooth_profile(elevations, closed)
       grade_limit = max_grade_percent.to_f / 100.0
       monotonic_exception = !closed && monotonic_downhill_profile?(smoothed) && exceeds_grade?(curve, smoothed, grade_limit)
@@ -34,6 +117,7 @@ module TopoVias
         max_grade_percent: measured_grade,
         grade_limit_percent: max_grade_percent.to_f,
         monotonic_exception: monotonic_exception,
+        terrain_sampler: terrain_sampler,
         stations: stations
       }
     end
@@ -127,15 +211,6 @@ module TopoVias
         0.5 * ((2.0 * b) + (-a + c) * t + (2.0 * a - 5.0 * b + 4.0 * c - d) * t2 + (-a + 3.0 * b - 3.0 * c + d) * t3)
       end
       Geom::Point3d.new(components[0], components[1], p1.z + (p2.z - p1.z) * t)
-    end
-
-    def terrain_elevation(model, terrain, point, start_z)
-      ray = [Geom::Point3d.new(point.x, point.y, start_z), Geom::Vector3d.new(0, 0, -1)]
-      hit = model.raytest(ray, false)
-      unless hit && hit[1].include?(terrain)
-        raise AnalysisError, 'No se pudo proyectar todo el eje sobre el grupo de terreno. Revisa que el terreno cubra el eje y que no haya geometría encima.'
-      end
-      hit[0].z
     end
 
     def smooth_profile(values, closed)

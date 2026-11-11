@@ -19,7 +19,7 @@ module TopoVias
       end
 
       terrain_top = terrain.bounds.max.z
-      terrain_margin = [terrain.bounds.diagonal * 0.1, 1000.0].max
+      terrain_sampler = analysis[:terrain_sampler]
       frame = build_station_frames(stations, closed)
       frame.each do |station|
         station[:terrain_edges] = {}
@@ -27,12 +27,7 @@ module TopoVias
 
         [-1, 1].each do |side|
           edge = offset_point(station, side, road_half + sidewalk_width + slope_width, station[:z])
-          station[:terrain_edges][side] = AxisEngine.terrain_elevation(
-            model,
-            terrain,
-            edge,
-            terrain_top + terrain_margin
-          )
+          station[:terrain_edges][side] = terrain_sampler.elevation_at(edge)
         end
       end
 
@@ -77,6 +72,7 @@ module TopoVias
         terrain_result = TerrainAdapter.trim_and_stitch(
           model, terrain, analysis, parameters, frame, slope_group
         )
+        analysis.delete(:terrain_sampler)
         groups = [road_group, sidewalk_group, curb_group, slope_group]
         model.commit_operation
       rescue StandardError

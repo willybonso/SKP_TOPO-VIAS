@@ -95,7 +95,6 @@ module TopoVias
 
       selected = resolve_selection
       analysis = AxisEngine.analyze(
-        Sketchup.active_model,
         selected[:terrain_group],
         selected[:axis_group],
         data['max_grade_percent']

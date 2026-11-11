@@ -32,3 +32,8 @@
 - Se rechazan tramos no adyacentes del eje que se acercan a una distancia igual o inferior al ancho de calzada.
 - La fusión booleana de taludes solapados sin conflicto con la calzada sigue pendiente de validación y desarrollo adicional.
 - La Fase 4 no se ha ejecutado todavía en SketchUp con modelos reales.
+# 2026-11-11 — Corrección de muestreo del terreno (0.4.1)
+- Se sustituyó la proyección por `raytest` por interpolación baricéntrica en triángulos de las caras del grupo de terreno.
+- El muestreador recorre también caras en grupos y componentes anidados, aplicando sus transformaciones.
+- Se reutiliza el mismo índice espacial para obtener cotas bajo el eje y en los extremos de los taludes; se libera al finalizar la generación.
+- Si el eje queda fuera de la malla, el mensaje ahora identifica que falta una cara bajo una estación.
