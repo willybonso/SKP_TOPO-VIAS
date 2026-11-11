@@ -7,7 +7,9 @@ module TopoVias
     class AnalysisError < StandardError; end
 
     INCHES_PER_METER = 39.37007874015748
-    SAMPLE_SPACING = INCHES_PER_METER
+    SAMPLE_SPACING = 5.0 * INCHES_PER_METER
+    MAX_CURVE_DEVIATION = 0.05 * INCHES_PER_METER
+    MAX_SUBDIVISION_DEPTH = 12
     GRADE_EPSILON = 1.0e-5
 
     class TerrainSampler
@@ -332,15 +334,44 @@ module TopoVias
         p2 = points[(index + 1) % points.length]
         p0 = closed ? points[(index - 1) % points.length] : points[[index - 1, 0].max]
         p3 = closed ? points[(index + 2) % points.length] : points[[index + 2, points.length - 1].min]
-        span = horizontal_distance(p1, p2)
-        steps = [(span / SAMPLE_SPACING).ceil, 1].max
-        steps.times do |step|
-          t = step.to_f / steps
-          result << catmull_rom(p0, p1, p2, p3, t)
-        end
+        parameters = [0.0]
+        refine_curve_parameters(p0, p1, p2, p3, 0.0, 1.0, p1, p2, parameters, 0)
+        parameters[0...-1].each { |t| result << catmull_rom(p0, p1, p2, p3, t) }
       end
       result << points.last unless closed
       result
+    end
+
+    def refine_curve_parameters(p0, p1, p2, p3, t0, t1, start_point, end_point, parameters, depth)
+      midpoint_t = (t0 + t1) / 2.0
+      midpoint = catmull_rom(p0, p1, p2, p3, midpoint_t)
+      deviation = [0.25, 0.5, 0.75].map do |fraction|
+        sample_t = t0 + (t1 - t0) * fraction
+        sample = if fraction == 0.5
+                   midpoint
+                 else
+                   catmull_rom(p0, p1, p2, p3, sample_t)
+                 end
+        chord_point = Geom::Point3d.new(
+          start_point.x + (end_point.x - start_point.x) * fraction,
+          start_point.y + (end_point.y - start_point.y) * fraction,
+          start_point.z + (end_point.z - start_point.z) * fraction
+        )
+        horizontal_distance(sample, chord_point)
+      end.max
+      chord_length = horizontal_distance(start_point, end_point)
+      needs_split = chord_length > SAMPLE_SPACING || deviation > MAX_CURVE_DEVIATION
+
+      if needs_split && depth < MAX_SUBDIVISION_DEPTH
+        refine_curve_parameters(
+          p0, p1, p2, p3, t0, midpoint_t, start_point, midpoint, parameters, depth + 1
+        )
+        refine_curve_parameters(
+          p0, p1, p2, p3, midpoint_t, t1, midpoint, end_point, parameters, depth + 1
+        )
+      else
+        parameters << t1
+      end
     end
 
     def catmull_rom(p0, p1, p2, p3, t)

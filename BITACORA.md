@@ -60,3 +60,7 @@
 # 2026-11-11 — Manejo de triángulos degenerados (0.4.8)
 - La traza ubicó `Duplicate points in array` en la costura del talud contra los bordes del terreno recortado.
 - `RoadGenerator.add_triangle` omite triángulos degenerados cuando dos vértices coinciden dentro de 0.001 pulgadas, evita áreas nulas y captura el error duplicado de SketchUp sin interrumpir la generación.
+# 2026-11-11 — Muestreo adaptativo para reducir geometría (0.4.9)
+- La separación nominal de estaciones pasó de 1 m a 5 m.
+- La curva Catmull–Rom se subdivide recursivamente donde el segmento supera 5 m o la desviación XY respecto de la cuerda supera 5 cm; se revisan cuartos, punto medio y tres cuartos para conservar detalle en curvas.
+- Se espera reducir aproximadamente cinco veces las estaciones en trazados rectos largos, con subdivisiones locales en las curvas.

@@ -12,7 +12,7 @@ module TopoVias
     extend self
 
     ROOT = File.dirname(__FILE__)
-    VERSION = '0.4.8'
+    VERSION = '0.4.9'
     DIAGNOSTIC_FILE = File.join(ENV['TEMP'] || ROOT, 'TOPO_ROAD_diagnostics.log')
 
     def open_dialog
