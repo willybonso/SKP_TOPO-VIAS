@@ -40,3 +40,7 @@
 # 2026-11-11 — Tolerancia de borde para proyección eje-terreno (0.4.2)
 - Se añadió ajuste local de hasta 0.25 m a la arista triangulada más próxima cuando una estación cae apenas fuera del contorno por discrepancias de dibujo.
 - El error de cobertura ahora informa las coordenadas XY de la estación que quedó fuera.
+# 2026-11-11 — Bitácora automática de errores (0.4.3)
+- Los errores de ejecución generan un identificador y registran clase/mensaje Ruby, stack trace, parámetros, grupos seleccionados, transformaciones y límites en `%TEMP%\TOPO_ROAD_diagnostics.log`.
+- El muestreador adjunta coordenadas de la estación, cantidad de triángulos, tamaño de celda y candidatos próximos cuando no encuentra terreno.
+- El formulario informa el ID y la ubicación de la bitácora para compartir el registro exacto.

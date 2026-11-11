@@ -2,6 +2,7 @@
 
 require 'sketchup.rb'
 require 'json'
+require 'time'
 require_relative 'axis_engine'
 require_relative 'road_generator'
 require_relative 'terrain_adapter'
@@ -11,6 +12,7 @@ module TopoVias
     extend self
 
     ROOT = File.dirname(__FILE__)
+    DIAGNOSTIC_FILE = File.join(ENV['TEMP'] || ROOT, 'TOPO_ROAD_diagnostics.log')
 
     def open_dialog
       if @dialog && @dialog.visible?
@@ -81,6 +83,8 @@ module TopoVias
     end
 
     def handle_parameters(json)
+      selected = nil
+      data = nil
       data = JSON.parse(json)
       unless valid_parameters?(data)
         @dialog.execute_script("window.parameterResult(#{JSON.generate(ok: false, message: 'Revisa los valores numéricos del formulario.' )});")
@@ -114,13 +118,54 @@ module TopoVias
       terrain_note = "Terreno recortado: #{generated[:terrain_result][:removed_faces]} caras retiradas; costura de talud: #{generated[:terrain_result][:stitched_faces]} caras."
       message = "TOPO_ROAD generado (#{kind}): #{(analysis[:length] / AxisEngine::INCHES_PER_METER).round(1)} m, #{analysis[:station_count]} estaciones y 4 grupos: Vía, Acera, Bordillo y Talud. #{terrain_note} Pendiente máxima: #{analysis[:max_grade_percent].round(2)} %.#{grade_note}"
       @dialog.execute_script("window.parameterResult(#{JSON.generate(ok: true, message: message, parameters: data)});")
-    rescue JSON::ParserError
-      @dialog.execute_script("window.parameterResult(#{JSON.generate(ok: false, message: 'No se pudieron leer los parámetros del formulario.' )});")
-    rescue AxisEngine::AnalysisError => error
-      @dialog.execute_script("window.parameterResult(#{JSON.generate(ok: false, message: error.message)});")
     rescue StandardError => error
-      message = "Error al analizar el modelo: #{error.message}"
+      diagnostic_id, log_path = write_diagnostic(error, selected, data)
+      message = "Error [#{diagnostic_id}]: #{error.message}. Diagnóstico guardado en: #{log_path}"
       @dialog.execute_script("window.parameterResult(#{JSON.generate(ok: false, message: message)});")
+    end
+
+    def write_diagnostic(error, selected, data)
+      diagnostic_id = "TR-#{Time.now.strftime('%Y%m%d-%H%M%S')}-#{rand(1000..9999)}"
+      model = Sketchup.active_model
+      report = {
+        id: diagnostic_id,
+        time: Time.now.iso8601,
+        plugin_version: '0.4.3',
+        error_class: error.class.name,
+        error_message: error.message,
+        backtrace: error.backtrace,
+        axis_sampling: error.respond_to?(:diagnostics) ? error.diagnostics : nil,
+        parameters: data,
+        selection: selected && {
+          terrain: group_diagnostics(selected[:terrain_group]),
+          axis: group_diagnostics(selected[:axis_group])
+        },
+        model_path: model.path
+      }
+      File.open(DIAGNOSTIC_FILE, 'a:utf-8') do |file|
+        file.puts(JSON.pretty_generate(report))
+        file.puts
+      end
+      [diagnostic_id, DIAGNOSTIC_FILE]
+    rescue StandardError => log_error
+      [diagnostic_id || 'TR-LOG-ERROR', "No se pudo escribir la bitácora: #{log_error.message}"]
+    end
+
+    def group_diagnostics(group)
+      return nil unless group && group.valid?
+
+      bounds = group.bounds
+      {
+        name: group.name,
+        entity_id: group.entityID,
+        transformation: group.transformation.to_a,
+        bounds_min: bounds.min.to_a,
+        bounds_max: bounds.max.to_a,
+        direct_faces: group.entities.grep(Sketchup::Face).length,
+        direct_edges: group.entities.grep(Sketchup::Edge).length,
+        direct_groups: group.entities.grep(Sketchup::Group).length,
+        direct_components: group.entities.grep(Sketchup::ComponentInstance).length
+      }
     end
 
     def valid_parameters?(data)

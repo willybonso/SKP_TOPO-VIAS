@@ -16,6 +16,7 @@ module TopoVias
       def initialize(terrain)
         @triangles = []
         @grid = Hash.new { |hash, key| hash[key] = [] }
+        @terrain_bounds = bounds_data(terrain.bounds)
         @cell_size = [[terrain.bounds.diagonal / 40.0, 100.0].max, 1000.0].min
         collect_faces(terrain.entities, terrain.transformation).each do |face, transform|
           mesh = face.mesh(0)
@@ -64,10 +65,21 @@ module TopoVias
           elevations = snapped unless snapped.empty?
         end
         if elevations.empty?
-          raise AnalysisError,
+          error = AnalysisError.new(
                 "No se encontró terreno bajo una estación del eje (X=#{point.x.round(2)}, Y=#{point.y.round(2)} pulgadas). " \
                 'El eje y el terreno deben coincidir en planta y estar dentro del contorno de la malla.'
+          )
+          error.define_singleton_method(:diagnostics) do
+            {
+              station_xy_in: [point.x, point.y],
+              terrain_bounds: @terrain_bounds,
+              terrain_triangle_count: @triangles.length,
+              spatial_cell_size_in: @cell_size,
+              nearby_triangle_candidates: candidates.length,
+              snapped_triangles_within_tolerance: snapped&.length || 0
+            }
         end
+          raise error
 
         elevations.max
       end
@@ -91,6 +103,10 @@ module TopoVias
           end
         end
         result
+      end
+
+      def bounds_data(bounds)
+        { min: bounds.min.to_a, max: bounds.max.to_a }
       end
 
       def interpolated_z(triangle, x, y)
