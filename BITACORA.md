@@ -22,5 +22,13 @@
 - La generación crea cuatro grupos independientes: vía, acera, bordillo y talud.
 - El bordillo usa su ancho configurable dentro del ancho total de acera; las secciones transversales mantienen cotas horizontales por estación.
 - Los taludes conectan el borde exterior de acera con puntos del terreno muestreados al final del ancho de proyección.
-- La Fase 4 queda pendiente para recortar el terreno y coser/unificar las superficies de talud.
 - El generador no se ha validado todavía en SketchUp con modelos de prueba; hay que comprobar el resultado en geometrías abiertas, cerradas y curvas cerradas.
+
+## 2026-11-11 — Fase 4: recorte y costura del terreno
+
+- Se añaden muros temporales para intersectar la huella exterior con la malla topográfica.
+- Se eliminan las caras de terreno dentro de la huella y se conserva el terreno exterior; en circuitos cerrados se conserva el área interior.
+- Se añaden triángulos al grupo de talud entre el borde triangulado del terreno cortado y la proyección de talud para coser diferencias de cota.
+- Se rechazan tramos no adyacentes del eje que se acercan a una distancia igual o inferior al ancho de calzada.
+- La fusión booleana de taludes solapados sin conflicto con la calzada sigue pendiente de validación y desarrollo adicional.
+- La Fase 4 no se ha ejecutado todavía en SketchUp con modelos reales.

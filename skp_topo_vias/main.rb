@@ -4,6 +4,7 @@ require 'sketchup.rb'
 require 'json'
 require_relative 'axis_engine'
 require_relative 'road_generator'
+require_relative 'terrain_adapter'
 
 module TopoVias
   module Plugin
@@ -99,18 +100,20 @@ module TopoVias
         selected[:axis_group],
         data['max_grade_percent']
       )
-      groups = RoadGenerator.generate(
+      generated = RoadGenerator.generate(
         Sketchup.active_model,
         selected[:terrain_group],
         analysis,
         data
       )
+      groups = generated[:groups]
       @last_parameters = data
       @last_analysis = analysis
       @last_output_groups = groups
       kind = analysis[:closed] ? 'circuito cerrado' : 'tramo abierto'
       grade_note = analysis[:monotonic_exception] ? ' Se permitió superar la pendiente máxima por el descenso monotónico entre extremos.' : ' Se aplicó el límite de pendiente.'
-      message = "TOPO_ROAD generado (#{kind}): #{(analysis[:length] / AxisEngine::INCHES_PER_METER).round(1)} m, #{analysis[:station_count]} estaciones y 4 grupos creados: Vía, Acera, Bordillo y Talud. Pendiente máxima calculada: #{analysis[:max_grade_percent].round(2)} %.#{grade_note}"
+      terrain_note = "Terreno recortado: #{generated[:terrain_result][:removed_faces]} caras retiradas; costura de talud: #{generated[:terrain_result][:stitched_faces]} caras."
+      message = "TOPO_ROAD generado (#{kind}): #{(analysis[:length] / AxisEngine::INCHES_PER_METER).round(1)} m, #{analysis[:station_count]} estaciones y 4 grupos: Vía, Acera, Bordillo y Talud. #{terrain_note} Pendiente máxima: #{analysis[:max_grade_percent].round(2)} %.#{grade_note}"
       @dialog.execute_script("window.parameterResult(#{JSON.generate(ok: true, message: message, parameters: data)});")
     rescue JSON::ParserError
       @dialog.execute_script("window.parameterResult(#{JSON.generate(ok: false, message: 'No se pudieron leer los parámetros del formulario.' )});")

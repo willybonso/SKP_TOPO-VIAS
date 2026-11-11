@@ -37,6 +37,7 @@ module TopoVias
       end
 
       groups = nil
+      terrain_result = nil
       model.start_operation('Generar vía TOPO_ROAD', true)
       begin
         road_group = model.entities.add_group
@@ -73,6 +74,9 @@ module TopoVias
           end
         end
 
+        terrain_result = TerrainAdapter.trim_and_stitch(
+          model, terrain, analysis, parameters, frame, slope_group
+        )
         groups = [road_group, sidewalk_group, curb_group, slope_group]
         model.commit_operation
       rescue StandardError
@@ -81,7 +85,7 @@ module TopoVias
       end
       model.selection.clear
       groups.each { |group| model.selection.add(group) }
-      groups
+      { groups: groups, terrain_result: terrain_result }
     end
 
     def build_station_frames(stations, closed)

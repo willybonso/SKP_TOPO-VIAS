@@ -1,6 +1,6 @@
 # TOPO_ROAD para SketchUp
 
-## Fases 1–3: interfaz, motor del eje y extrusión
+## Fases 1–4: entrada, geometría vial y adaptación del terreno
 
 La extensión añade **Extensiones → TOPO_ROAD → Configurar vía…** y un botón en la barra de herramientas. El formulario captura ancho total de calle, opción y ancho de bordillo, ancho y altura de acera, ancho de talud y pendiente máxima.
 
@@ -13,7 +13,9 @@ Selecciona exactamente dos grupos antes de validar:
 
 La selección puede validarse desde el formulario. Los parámetros se aceptan solo cuando la selección es válida y los valores numéricos están dentro de rango. Al pulsar **Generar vía**, el motor ordena el eje, rechaza desconexiones y ramificaciones, genera estaciones Catmull–Rom, proyecta cotas sobre el terreno y ajusta el perfil longitudinal. Después extruye la sección y crea cuatro grupos independientes: `Grupo de Vía`, `Grupo de Acera`, `Grupo de Bordillo` y `Grupo de Talud`. El ancho de bordillo está incluido dentro del ancho de acera. Los taludes enlazan el borde exterior de acera con cotas del terreno muestreadas en el ancho de proyección indicado.
 
-La excepción de pendiente máxima se aplica al tramo abierto que desciende monotónicamente desde una cota alta hasta una cota baja. Las Fases 1–3 están implementadas; el recorte del terreno, la costura orgánica y la fusión de taludes cercanos quedan para la Fase 4.
+La Fase 4 corta la malla del terreno por la huella exterior de la vía, conserva la superficie fuera de ella y conserva la isla interior de circuitos cerrados. El borde de corte se cose al talud con triángulos. El generador bloquea trazados donde dos tramos no adyacentes se acercan hasta el ancho de la calzada. La fusión booleana de taludes que se solapan sin comprometer la calzada aún requiere validación geométrica adicional.
+
+La excepción de pendiente máxima se aplica al tramo abierto que desciende monotónicamente desde una cota alta hasta una cota baja. Las Fases 1–4 están conectadas al botón de generación; valida la malla cortada y la costura en modelos representativos antes de usarla en producción.
 
 ### Instalación para desarrollo
 
