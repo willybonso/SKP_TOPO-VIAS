@@ -66,8 +66,8 @@ module TopoVias
         end
         if elevations.empty?
           error = AnalysisError.new(
-                "No se encontró terreno bajo una estación del eje (X=#{point.x.round(2)}, Y=#{point.y.round(2)} pulgadas). " \
-                'El eje y el terreno deben coincidir en planta y estar dentro del contorno de la malla.'
+            "No se encontró terreno bajo una estación del eje (X=#{point.x.round(2)}, Y=#{point.y.round(2)} pulgadas). " \
+            'El eje y el terreno deben coincidir en planta y estar dentro del contorno de la malla.'
           )
           error.define_singleton_method(:diagnostics) do
             {
@@ -78,8 +78,9 @@ module TopoVias
               nearby_triangle_candidates: candidates.length,
               snapped_triangles_within_tolerance: snapped&.length || 0
             }
-        end
+          end
           raise error
+        end
 
         elevations.max
       end

@@ -44,3 +44,5 @@
 - Los errores de ejecución generan un identificador y registran clase/mensaje Ruby, stack trace, parámetros, grupos seleccionados, transformaciones y límites en `%TEMP%\TOPO_ROAD_diagnostics.log`.
 - El muestreador adjunta coordenadas de la estación, cantidad de triángulos, tamaño de celda y candidatos próximos cuando no encuentra terreno.
 - El formulario informa el ID y la ubicación de la bitácora para compartir el registro exacto.
+# 2026-11-11 — Reparación de carga de la extensión (0.4.4)
+- Se corrigió un `end` ausente en el bloque de diagnóstico del muestreador, que impedía analizar `axis_engine.rb` y por tanto cargar la extensión.
