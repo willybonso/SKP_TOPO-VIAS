@@ -10,8 +10,17 @@
 - El perfil longitudinal se suaviza y se limita por pendiente máxima; la excepción de pendiente se aplica al tramo abierto que desciende monotónicamente desde una cota alta a una baja.
 - Se añadió un instalador PowerShell con lanzador `.bat`, copias de seguridad y destino SketchUp 2026 configurado.
 
-### Estado y siguiente trabajo
+### Estado al cerrar las fases 1 y 2
 
 - Fases 1 y 2 implementadas en código; no verificadas dentro de SketchUp con un modelo real.
-- Las estaciones y parámetros calculados quedan en memoria. La Fase 3 debe consumirlos para generar la sección y extruir la calzada, acera y bordillo.
-- Después quedan pendientes el recorte y adaptación del terreno (Fase 4), además de validaciones geométricas con modelos de prueba.
+- Las estaciones y parámetros calculados quedan en memoria para que los consuman las siguientes fases.
+
+## 2026-11-11 — Fase 3 y cambio de nombre
+
+- El nombre visible de la extensión cambió a `TOPO_ROAD`; se conserva la carpeta técnica interna para que el instalador pueda actualizar instalaciones existentes.
+- Se añadió el generador de sección transversal y extrusión longitudinal.
+- La generación crea cuatro grupos independientes: vía, acera, bordillo y talud.
+- El bordillo usa su ancho configurable dentro del ancho total de acera; las secciones transversales mantienen cotas horizontales por estación.
+- Los taludes conectan el borde exterior de acera con puntos del terreno muestreados al final del ancho de proyección.
+- La Fase 4 queda pendiente para recortar el terreno y coser/unificar las superficies de talud.
+- El generador no se ha validado todavía en SketchUp con modelos de prueba; hay que comprobar el resultado en geometrías abiertas, cerradas y curvas cerradas.

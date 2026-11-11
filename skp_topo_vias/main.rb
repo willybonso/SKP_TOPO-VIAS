@@ -3,6 +3,7 @@
 require 'sketchup.rb'
 require 'json'
 require_relative 'axis_engine'
+require_relative 'road_generator'
 
 module TopoVias
   module Plugin
@@ -17,7 +18,7 @@ module TopoVias
       end
 
       @dialog = UI::HtmlDialog.new(
-        dialog_title: 'Vías Topográficas — Parámetros',
+        dialog_title: 'TOPO_ROAD — Parámetros',
         preferences_key: 'topo_vias.parameters',
         scrollable: true,
         resizable: true,
@@ -98,11 +99,18 @@ module TopoVias
         selected[:axis_group],
         data['max_grade_percent']
       )
+      groups = RoadGenerator.generate(
+        Sketchup.active_model,
+        selected[:terrain_group],
+        analysis,
+        data
+      )
       @last_parameters = data
       @last_analysis = analysis
+      @last_output_groups = groups
       kind = analysis[:closed] ? 'circuito cerrado' : 'tramo abierto'
       grade_note = analysis[:monotonic_exception] ? ' Se permitió superar la pendiente máxima por el descenso monotónico entre extremos.' : ' Se aplicó el límite de pendiente.'
-      message = "Análisis listo (#{kind}): #{(analysis[:length] / AxisEngine::INCHES_PER_METER).round(1)} m, #{analysis[:station_count]} estaciones, pendiente máxima calculada #{analysis[:max_grade_percent].round(2)} %.#{grade_note}"
+      message = "TOPO_ROAD generado (#{kind}): #{(analysis[:length] / AxisEngine::INCHES_PER_METER).round(1)} m, #{analysis[:station_count]} estaciones y 4 grupos creados: Vía, Acera, Bordillo y Talud. Pendiente máxima calculada: #{analysis[:max_grade_percent].round(2)} %.#{grade_note}"
       @dialog.execute_script("window.parameterResult(#{JSON.generate(ok: true, message: message, parameters: data)});")
     rescue JSON::ParserError
       @dialog.execute_script("window.parameterResult(#{JSON.generate(ok: false, message: 'No se pudieron leer los parámetros del formulario.' )});")
@@ -129,11 +137,11 @@ module TopoVias
     end
 
     unless file_loaded?(__FILE__)
-      menu = UI.menu('Extensions').add_submenu('Vías Topográficas')
+      menu = UI.menu('Extensions').add_submenu('TOPO_ROAD')
       menu.add_item('Configurar vía…') { open_dialog }
-      toolbar = UI::Toolbar.new('Vías Topográficas')
-      command = UI::Command.new('Configurar vía') { open_dialog }
-      command.tooltip = 'Configurar los parámetros de una vía topográfica'
+      toolbar = UI::Toolbar.new('TOPO_ROAD')
+      command = UI::Command.new('Configurar TOPO_ROAD') { open_dialog }
+      command.tooltip = 'Configurar y generar una vía topográfica'
       command.status_bar_text = 'Abre el formulario de parámetros y valida la selección.'
       toolbar.add_item(command)
       toolbar.restore

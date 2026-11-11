@@ -167,7 +167,7 @@ module TopoVias
           changed = false
           profile.each_index do |index|
             next_index = (index + 1) % profile.length
-            distance = points[index].distance(points[next_index])
+            distance = horizontal_distance(points[index], points[next_index])
             allowed = limit * distance
             delta = profile[next_index] - profile[index]
             if delta > allowed
