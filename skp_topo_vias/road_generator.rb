@@ -160,11 +160,29 @@ module TopoVias
     end
 
     def add_triangle(entities, a, b, c, desired_normal)
+      return if duplicate_points?(a, b) || duplicate_points?(b, c) || duplicate_points?(c, a)
+
+      first_edge = a.vector_to(b)
+      second_edge = a.vector_to(c)
+      return if first_edge.cross(second_edge).length <= 1.0e-8
+
       face = entities.add_face([a, b, c])
       return unless face
 
       face.reverse! if face.normal.dot(desired_normal) < 0
       face
+    rescue ArgumentError => error
+      raise unless error.message.include?('Duplicate points in array')
+
+      nil
+    end
+
+    def duplicate_points?(first, second)
+      tolerance = 0.001 # inches; below SketchUp's useful face resolution
+      dx = first.x - second.x
+      dy = first.y - second.y
+      dz = first.z - second.z
+      dx * dx + dy * dy + dz * dz <= tolerance * tolerance
     end
 
     def offset_point(frame, side, offset, z)

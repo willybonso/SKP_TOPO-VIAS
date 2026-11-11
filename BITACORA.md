@@ -57,3 +57,6 @@
 - El diagnóstico confirmó que la ruta de recorte llamaba al muestreador en modo no estricto, pero el error de cobertura no respetaba ese modo y abortaba antes del recorte. Ahora devuelve `nil` para puntos fuera del terreno en modo de consulta.
 - Los errores de proyección muestran X/Y en metros; los límites y tamaño de celda del diagnóstico también quedan expresados en metros.
 - La etiqueta de versión de la bitácora ahora procede de la constante del plugin y no de un valor antiguo fijo.
+# 2026-11-11 — Manejo de triángulos degenerados (0.4.8)
+- La traza ubicó `Duplicate points in array` en la costura del talud contra los bordes del terreno recortado.
+- `RoadGenerator.add_triangle` omite triángulos degenerados cuando dos vértices coinciden dentro de 0.001 pulgadas, evita áreas nulas y captura el error duplicado de SketchUp sin interrumpir la generación.
