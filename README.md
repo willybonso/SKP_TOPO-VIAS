@@ -15,6 +15,8 @@ La selección puede validarse desde el formulario. Los parámetros se aceptan so
 
 Ante un error al generar, el plugin agrega el detalle Ruby, la traza y metadatos de transformación/extensión de los grupos a `%TEMP%\TOPO_ROAD_diagnostics.log`. El formulario muestra un identificador `TR-...` para encontrar el registro de ese intento. En ejes abiertos, la versión 0.4.6 limita los extremos al tramo donde la sección vial completa (calzada, acera y talud) queda dentro del área triangulada del terreno. La altura Z del grupo del eje no interviene en esta comprobación. Circuitos cerrados deben quedar cubiertos por el terreno en todo su recorrido.
 
+Las coordenadas de los mensajes y el diagnóstico se presentan en metros aunque SketchUp almacene coordenadas internas en pulgadas. La versión 0.4.7 también corrige el modo de consulta de cobertura usado al recortar el eje: los puntos fuera del terreno se reportan como no cubiertos para que se pueda recortar el tramo abierto, en vez de interrumpir el análisis.
+
 La Fase 4 corta la malla del terreno por la huella exterior de la vía, conserva la superficie fuera de ella y conserva la isla interior de circuitos cerrados. El borde de corte se cose al talud con triángulos. El generador bloquea trazados donde dos tramos no adyacentes se acercan hasta el ancho de la calzada. La fusión booleana de taludes que se solapan sin comprometer la calzada aún requiere validación geométrica adicional.
 
 La excepción de pendiente máxima se aplica al tramo abierto que desciende monotónicamente desde una cota alta hasta una cota baja. Las Fases 1–4 están conectadas al botón de generación; valida la malla cortada y la costura en modelos representativos antes de usarla en producción.

@@ -53,3 +53,7 @@
 - El diagnóstico confirmó que los extremos de ejes abiertos pueden quedar fuera del contorno XY del terreno, aunque una parte del trazado sí se superponga.
 - Se recortan los extremos del eje abierto al tramo donde las estaciones central y laterales de la sección vial están cubiertas por la malla; Z no participa en la consulta.
 - Si el eje entra y sale del terreno por varios tramos, se detiene con mensaje para evitar conectar zonas desconectadas. Circuitos cerrados exigen cobertura completa.
+# 2026-11-11 — Cobertura y unidades en metros (0.4.7)
+- El diagnóstico confirmó que la ruta de recorte llamaba al muestreador en modo no estricto, pero el error de cobertura no respetaba ese modo y abortaba antes del recorte. Ahora devuelve `nil` para puntos fuera del terreno en modo de consulta.
+- Los errores de proyección muestran X/Y en metros; los límites y tamaño de celda del diagnóstico también quedan expresados en metros.
+- La etiqueta de versión de la bitácora ahora procede de la constante del plugin y no de un valor antiguo fijo.

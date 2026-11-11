@@ -12,6 +12,7 @@ module TopoVias
     extend self
 
     ROOT = File.dirname(__FILE__)
+    VERSION = '0.4.7'
     DIAGNOSTIC_FILE = File.join(ENV['TEMP'] || ROOT, 'TOPO_ROAD_diagnostics.log')
 
     def open_dialog
@@ -140,7 +141,7 @@ module TopoVias
       report = {
         id: diagnostic_id,
         time: Time.now.iso8601,
-        plugin_version: '0.4.3',
+        plugin_version: VERSION,
         error_class: error.class.name,
         error_message: error.message,
         backtrace: error.backtrace,
@@ -169,8 +170,10 @@ module TopoVias
         name: group.name,
         entity_id: group.entityID,
         transformation: group.transformation.to_a,
-        bounds_min: bounds.min.to_a,
-        bounds_max: bounds.max.to_a,
+        transformation_translation_units: 'SketchUp internal units',
+        bounds_units: 'm',
+        bounds_min: bounds.min.to_a.map { |coordinate| coordinate / AxisEngine::INCHES_PER_METER },
+        bounds_max: bounds.max.to_a.map { |coordinate| coordinate / AxisEngine::INCHES_PER_METER },
         direct_faces: group.entities.grep(Sketchup::Face).length,
         direct_edges: group.entities.grep(Sketchup::Edge).length,
         direct_groups: group.entities.grep(Sketchup::Group).length,

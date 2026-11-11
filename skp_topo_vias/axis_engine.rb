@@ -64,22 +64,22 @@ module TopoVias
           end
           elevations = snapped unless snapped.empty?
         end
-        if elevations.empty?
+        if elevations.empty? && strict
           terrain_bounds = @terrain_bounds
           triangle_count = @triangles.length
           cell_size = @cell_size
           candidate_count = candidates.length
           snapped_count = snapped&.length || 0
           error = AnalysisError.new(
-            "No se encontró terreno bajo una estación del eje (X=#{point.x.round(2)}, Y=#{point.y.round(2)} pulgadas). " \
+            "No se encontró terreno bajo una estación del eje (X=#{(point.x / INCHES_PER_METER).round(2)} m, Y=#{(point.y / INCHES_PER_METER).round(2)} m). " \
             'El eje y el terreno deben coincidir en planta y estar dentro del contorno de la malla.'
           )
           error.define_singleton_method(:diagnostics) do
             {
-              station_xy_in: [point.x, point.y],
-              terrain_bounds: terrain_bounds,
+              station_xy_m: [point.x / INCHES_PER_METER, point.y / INCHES_PER_METER],
+              terrain_bounds_m: terrain_bounds,
               terrain_triangle_count: triangle_count,
-              spatial_cell_size_in: cell_size,
+              spatial_cell_size_m: cell_size / INCHES_PER_METER,
               nearby_triangle_candidates: candidate_count,
               snapped_triangles_within_tolerance: snapped_count
             }
@@ -113,7 +113,11 @@ module TopoVias
       end
 
       def bounds_data(bounds)
-        { min: bounds.min.to_a, max: bounds.max.to_a }
+        {
+          units: 'm',
+          min: bounds.min.to_a.map { |coordinate| coordinate / INCHES_PER_METER },
+          max: bounds.max.to_a.map { |coordinate| coordinate / INCHES_PER_METER }
+        }
       end
 
       def interpolated_z(triangle, x, y)
