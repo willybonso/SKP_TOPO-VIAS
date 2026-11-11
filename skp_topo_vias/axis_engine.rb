@@ -45,7 +45,7 @@ module TopoVias
         raise AnalysisError, 'El grupo de terreno no contiene una malla de caras proyectable en planta.' if @triangles.empty?
       end
 
-      def elevation_at(point)
+      def elevation_at(point, strict: true)
         cell_x = (point.x / @cell_size).floor
         cell_y = (point.y / @cell_size).floor
         candidates = {}
@@ -56,7 +56,7 @@ module TopoVias
         end
 
         elevations = candidates.keys.map { |id| interpolated_z(@triangles[id], point.x, point.y) }.compact
-        if elevations.empty?
+        if elevations.empty? && strict
           # SketchUp linework often sits a few millimetres outside an irregular
           # mesh boundary. Snap only that small XY error to the nearest edge.
           snapped = candidates.keys.filter_map do |id|
@@ -86,6 +86,7 @@ module TopoVias
           end
           raise error
         end
+        return nil if elevations.empty?
 
         elevations.max
       end
@@ -150,12 +151,18 @@ module TopoVias
       end
     end
 
-    def analyze(terrain, axis, max_grade_percent)
+    def analyze(terrain, axis, max_grade_percent, corridor_half_width = 0.0)
       axis_points, closed = ordered_axis_points(axis)
       curve = sample_curve(axis_points, closed)
       raise AnalysisError, 'El eje es demasiado corto para generar estaciones.' if curve.length < 2
 
       terrain_sampler = TerrainSampler.new(terrain)
+      original_length = path_length(curve, closed)
+      trimmed = { start: false, end: false }
+      unless closed
+        curve, trimmed = trim_open_curve_to_terrain(curve, terrain_sampler, corridor_half_width)
+      end
+      raise AnalysisError, 'El tramo coincidente con el terreno es demasiado corto para generar la vía.' if curve.length < 2
       elevations = curve.map { |point| terrain_sampler.elevation_at(point) }
       smoothed = smooth_profile(elevations, closed)
       grade_limit = max_grade_percent.to_f / 100.0
@@ -173,9 +180,85 @@ module TopoVias
         max_grade_percent: measured_grade,
         grade_limit_percent: max_grade_percent.to_f,
         monotonic_exception: monotonic_exception,
+        terrain_trimmed: trimmed,
+        original_length: original_length,
         terrain_sampler: terrain_sampler,
         stations: stations
       }
+    end
+
+    def trim_open_curve_to_terrain(points, sampler, corridor_half_width)
+      covered = points.each_with_index.map do |point, index|
+        previous = points[[index - 1, 0].max]
+        following = points[[index + 1, points.length - 1].min]
+        corridor_covered?(point, previous, following, sampler, corridor_half_width)
+      end
+      runs = []
+      covered.each_with_index do |is_covered, index|
+        if is_covered
+          runs << [index, index] if runs.empty? || runs[-1][1] != index - 1
+          runs[-1][1] = index
+        end
+      end
+      raise AnalysisError, 'La polilínea no intersecta en planta el terreno con el ancho completo de la sección vial.' if runs.empty?
+      if runs.length > 1
+        raise AnalysisError, 'El eje entra y sale varias veces del área topográfica. Divide el eje en tramos continuos dentro del terreno.'
+      end
+
+      first_index, last_index = runs.first
+      start_trimmed = first_index.positive?
+      end_trimmed = last_index < points.length - 1
+      trimmed_points = points[first_index..last_index]
+      if start_trimmed
+        boundary = corridor_boundary(points[first_index - 1], points[first_index], sampler, corridor_half_width, entering: true)
+        trimmed_points.unshift(boundary)
+      end
+      if end_trimmed
+        boundary = corridor_boundary(points[last_index], points[last_index + 1], sampler, corridor_half_width, entering: false)
+        trimmed_points << boundary
+      end
+      [trimmed_points, { start: start_trimmed, end: end_trimmed }]
+    end
+
+    def corridor_covered?(point, previous, following, sampler, half_width)
+      return !sampler.elevation_at(point, strict: false).nil? if half_width <= 0.0
+
+      dx = following.x - previous.x
+      dy = following.y - previous.y
+      length = Math.hypot(dx, dy)
+      return false if length.zero?
+
+      nx = -dy / length
+      ny = dx / length
+      center = Geom::Point3d.new(point.x, point.y, 0)
+      [-1.0, 0.0, 1.0].all? do |side|
+        sample = Geom::Point3d.new(center.x + nx * half_width * side, center.y + ny * half_width * side, 0)
+        !sampler.elevation_at(sample, strict: false).nil?
+      end
+    end
+
+    def corridor_boundary(outside, inside, sampler, half_width, entering:)
+      low = 0.0
+      high = 1.0
+      32.times do
+        middle = (low + high) / 2.0
+        point = interpolate_point(outside, inside, middle)
+        covered = corridor_covered?(point, outside, inside, sampler, half_width)
+        if entering
+          covered ? high = middle : low = middle
+        else
+          covered ? low = middle : high = middle
+        end
+      end
+      interpolate_point(outside, inside, entering ? high : low)
+    end
+
+    def interpolate_point(a, b, t)
+      Geom::Point3d.new(
+        a.x + (b.x - a.x) * t,
+        a.y + (b.y - a.y) * t,
+        a.z + (b.z - a.z) * t
+      )
     end
 
     def ordered_axis_points(axis)

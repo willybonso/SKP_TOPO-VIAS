@@ -49,3 +49,7 @@
 # 2026-11-11 — Reparación del registro de diagnóstico (0.4.5)
 - Se corrigió el cierre de variables del informe de muestreo: los contadores y límites se capturan antes de crear el método diagnóstico, evitando `undefined method length for nil`.
 - La generación del informe ahora captura errores internos del recolector y continúa registrando el resto del contexto.
+# 2026-11-11 — Recorte del eje al área cubierta por terreno (0.4.6)
+- El diagnóstico confirmó que los extremos de ejes abiertos pueden quedar fuera del contorno XY del terreno, aunque una parte del trazado sí se superponga.
+- Se recortan los extremos del eje abierto al tramo donde las estaciones central y laterales de la sección vial están cubiertas por la malla; Z no participa en la consulta.
+- Si el eje entra y sale del terreno por varios tramos, se detiene con mensaje para evitar conectar zonas desconectadas. Circuitos cerrados exigen cobertura completa.

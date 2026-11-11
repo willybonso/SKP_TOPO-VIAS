@@ -98,10 +98,14 @@ module TopoVias
       end
 
       selected = resolve_selection
+      corridor_half_width = (
+        data['road_width_m'] / 2.0 + data['sidewalk_width_m'] + data['slope_width_m']
+      ) * AxisEngine::INCHES_PER_METER
       analysis = AxisEngine.analyze(
         selected[:terrain_group],
         selected[:axis_group],
-        data['max_grade_percent']
+        data['max_grade_percent'],
+        corridor_half_width
       )
       generated = RoadGenerator.generate(
         Sketchup.active_model,
@@ -116,7 +120,8 @@ module TopoVias
       kind = analysis[:closed] ? 'circuito cerrado' : 'tramo abierto'
       grade_note = analysis[:monotonic_exception] ? ' Se permitió superar la pendiente máxima por el descenso monotónico entre extremos.' : ' Se aplicó el límite de pendiente.'
       terrain_note = "Terreno recortado: #{generated[:terrain_result][:removed_faces]} caras retiradas; costura de talud: #{generated[:terrain_result][:stitched_faces]} caras."
-      message = "TOPO_ROAD generado (#{kind}): #{(analysis[:length] / AxisEngine::INCHES_PER_METER).round(1)} m, #{analysis[:station_count]} estaciones y 4 grupos: Vía, Acera, Bordillo y Talud. #{terrain_note} Pendiente máxima: #{analysis[:max_grade_percent].round(2)} %.#{grade_note}"
+      trim_note = analysis[:terrain_trimmed].values.any? ? ' Se recortaron los extremos del eje al tramo donde cabe la sección completa dentro del terreno.' : ''
+      message = "TOPO_ROAD generado (#{kind}): #{(analysis[:length] / AxisEngine::INCHES_PER_METER).round(1)} m, #{analysis[:station_count]} estaciones y 4 grupos: Vía, Acera, Bordillo y Talud. #{terrain_note} Pendiente máxima: #{analysis[:max_grade_percent].round(2)} %.#{grade_note}#{trim_note}"
       @dialog.execute_script("window.parameterResult(#{JSON.generate(ok: true, message: message, parameters: data)});")
     rescue StandardError => error
       diagnostic_id, log_path = write_diagnostic(error, selected, data)
