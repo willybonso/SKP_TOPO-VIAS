@@ -46,3 +46,6 @@
 - El formulario informa el ID y la ubicación de la bitácora para compartir el registro exacto.
 # 2026-11-11 — Reparación de carga de la extensión (0.4.4)
 - Se corrigió un `end` ausente en el bloque de diagnóstico del muestreador, que impedía analizar `axis_engine.rb` y por tanto cargar la extensión.
+# 2026-11-11 — Reparación del registro de diagnóstico (0.4.5)
+- Se corrigió el cierre de variables del informe de muestreo: los contadores y límites se capturan antes de crear el método diagnóstico, evitando `undefined method length for nil`.
+- La generación del informe ahora captura errores internos del recolector y continúa registrando el resto del contexto.

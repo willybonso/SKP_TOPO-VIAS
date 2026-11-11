@@ -127,6 +127,11 @@ module TopoVias
     def write_diagnostic(error, selected, data)
       diagnostic_id = "TR-#{Time.now.strftime('%Y%m%d-%H%M%S')}-#{rand(1000..9999)}"
       model = Sketchup.active_model
+      axis_sampling = begin
+        error.respond_to?(:diagnostics) ? error.diagnostics : nil
+      rescue StandardError => diagnostic_error
+        { diagnostic_collection_error: "#{diagnostic_error.class}: #{diagnostic_error.message}" }
+      end
       report = {
         id: diagnostic_id,
         time: Time.now.iso8601,
@@ -134,7 +139,7 @@ module TopoVias
         error_class: error.class.name,
         error_message: error.message,
         backtrace: error.backtrace,
-        axis_sampling: error.respond_to?(:diagnostics) ? error.diagnostics : nil,
+        axis_sampling: axis_sampling,
         parameters: data,
         selection: selected && {
           terrain: group_diagnostics(selected[:terrain_group]),
