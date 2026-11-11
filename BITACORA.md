@@ -37,3 +37,6 @@
 - El muestreador recorre también caras en grupos y componentes anidados, aplicando sus transformaciones.
 - Se reutiliza el mismo índice espacial para obtener cotas bajo el eje y en los extremos de los taludes; se libera al finalizar la generación.
 - Si el eje queda fuera de la malla, el mensaje ahora identifica que falta una cara bajo una estación.
+# 2026-11-11 — Tolerancia de borde para proyección eje-terreno (0.4.2)
+- Se añadió ajuste local de hasta 0.25 m a la arista triangulada más próxima cuando una estación cae apenas fuera del contorno por discrepancias de dibujo.
+- El error de cobertura ahora informa las coordenadas XY de la estación que quedó fuera.

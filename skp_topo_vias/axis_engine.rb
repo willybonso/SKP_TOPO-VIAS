@@ -11,6 +11,8 @@ module TopoVias
     GRADE_EPSILON = 1.0e-5
 
     class TerrainSampler
+      EDGE_SNAP_TOLERANCE = 9.842519685 # 0.25 m in SketchUp inches
+
       def initialize(terrain)
         @triangles = []
         @grid = Hash.new { |hash, key| hash[key] = [] }
@@ -53,7 +55,19 @@ module TopoVias
         end
 
         elevations = candidates.keys.map { |id| interpolated_z(@triangles[id], point.x, point.y) }.compact
-        raise AnalysisError, 'No se encontró una cara del grupo de terreno bajo una estación del eje. Comprueba que la malla cubra todo el eje.' if elevations.empty?
+        if elevations.empty?
+          # SketchUp linework often sits a few millimetres outside an irregular
+          # mesh boundary. Snap only that small XY error to the nearest edge.
+          snapped = candidates.keys.filter_map do |id|
+            nearest_z_on_triangle_edge(@triangles[id], point.x, point.y)
+          end
+          elevations = snapped unless snapped.empty?
+        end
+        if elevations.empty?
+          raise AnalysisError,
+                "No se encontró terreno bajo una estación del eje (X=#{point.x.round(2)}, Y=#{point.y.round(2)} pulgadas). " \
+                'El eje y el terreno deben coincidir en planta y estar dentro del contorno de la malla.'
+        end
 
         elevations.max
       end
@@ -91,6 +105,26 @@ module TopoVias
         return nil if [weight_a, weight_b, weight_c].any? { |weight| weight < -tolerance || weight > 1.0 + tolerance }
 
         weight_a * a.z + weight_b * b.z + weight_c * c.z
+      end
+
+      def nearest_z_on_triangle_edge(triangle, x, y)
+        a, b, c = triangle
+        denominator = projected_area_twice(triangle)
+        return nil if denominator.abs < 1.0e-10
+
+        wa = ((b.x - x) * (c.y - y) - (b.y - y) * (c.x - x)) / denominator
+        wb = ((c.x - x) * (a.y - y) - (c.y - y) * (a.x - x)) / denominator
+        weights = [wa, wb, 1.0 - wa - wb].map { |weight| [weight, 0.0].max }
+        total = weights.sum
+        return nil if total.zero?
+
+        weights.map! { |weight| weight / total }
+        projected_x = weights[0] * a.x + weights[1] * b.x + weights[2] * c.x
+        projected_y = weights[0] * a.y + weights[1] * b.y + weights[2] * c.y
+        distance = Math.hypot(projected_x - x, projected_y - y)
+        return nil if distance > EDGE_SNAP_TOLERANCE
+
+        weights[0] * a.z + weights[1] * b.z + weights[2] * c.z
       end
     end
 
